@@ -22,26 +22,30 @@ func init() {
 		en := en.New()
 		unt := ut.New(en, en)
 		transl, _ = unt.GetTranslator("en")
-		en_translation.RegisterDefaultTranslations()
+		en_translation.RegisterDefaultTranslations(val, transl)
 	}
 
 }
 
-func validateUserError(validation_err error) *rest_err.RestErr {
+func ValidateUserError(validation_err error) *rest_err.RestErr {
 	var jsonErr *json.UnmarshalTypeError
 	var jsonValidationError validator.ValidationErrors
 
-	if errors.As(validation_err, jsonErr) {
+	if errors.As(validation_err, &jsonErr) {
 		return rest_err.NewBadRequestError("Invalid field type")
-	} else if errors.As(validation_err, jsonValidationError) {
+	} else if errors.As(validation_err, &jsonValidationError) {
 		errorsCauses := []rest_err.Causes{}
 
 		for _, e := range validation_err.(validator.ValidationErrors) {
-						cause := rest_err.CausMesMessage{ 
-										Message: e.Translate()
-										Field: e.Field()
-						}
-						errorsCauses = append(errorsCauses, cause )
+			cause := rest_err.Causes{
+				Message: e.Translate(transl),
+				Field:   e.Field(),
+			}
+			errorsCauses = append(errorsCauses, cause)
 		}
+
+		return rest_err.NewBadRequestValidationError("Some fields are invalid", errorsCauses)
+	} else {
+		return rest_err.NewBadRequestError("Error trying to convert fields")
 	}
 }
